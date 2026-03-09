@@ -281,6 +281,13 @@
     color: var(--accent);
     white-space: nowrap;
     flex-shrink: 0;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    transition: background 0.15s, color 0.15s;
+  }
+  .topbar-logo:hover {
+    background: var(--accent);
+    color: #0e0e0e;
   }
 
   /* Inline search form */
@@ -1080,7 +1087,7 @@
 ══════════════════════════════════════ -->
 <div id="screen-gallery" class="screen">
   <div class="topbar">
-    <div class="topbar-logo">ImageHarvest</div>
+    <div class="topbar-logo" onclick="goBack()" style="cursor:pointer;" title="Back to home">ImageHarvest</div>
     <div class="topbar-form">
       <input class="topbar-url-input" id="topbar-url-input" type="url"
              placeholder="https://example.com" autocomplete="off" spellcheck="false" />
@@ -1102,7 +1109,7 @@
       <button class="topbar-go-btn" id="topbar-go-btn" onclick="topbarScrape()">Go →</button>
     </div>
     <div class="topbar-stats" id="topbar-stats"></div>
-    <button class="topbar-back" onclick="goBack()">← Home</button>
+
   </div>
 
   <div class="progress-wrap" id="progress-wrap">
