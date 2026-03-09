@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImageHarvest — Site Image Scraper</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c8f060;
+    --accent2: #60d4f0;
+    --text: #f0ede6;
+    --text-muted: #6b6b6b;
+    --text-dim: #3a3a3a;
+    --danger: #f06060;
+    --radius: 4px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREEN SYSTEM ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ══════════════════════════════════════
+     SCREEN 1 — URL ENTRY
+  ══════════════════════════════════════ */
+  #screen-entry {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #screen-entry::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(200,240,96,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(96,212,240,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .entry-inner {
+    width: 100%;
+    max-width: 640px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .wordmark {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 52px;
+  }
+
+  .wordmark span { color: var(--accent); }
+
+  .entry-headline {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(36px, 6vw, 58px);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .entry-headline em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--accent);
+  }
+
+  .entry-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 48px;
+    line-height: 1.6;
+  }
+
+  .url-field-wrap {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .url-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .url-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color 0.2s;
+    caret-color: var(--accent);
+  }
+
+  .url-input::placeholder { color: var(--text-dim); }
+  .url-input:focus { border-color: var(--accent); }
+
+  /* ── SCOPE TOGGLE ── */
+  .scope-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .scope-btn {
+    flex: 1;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: left;
+    position: relative;
+  }
+
+  .scope-btn .scope-title {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 3px;
+    color: var(--text-muted);
+    transition: color 0.18s;
+  }
+
+  .scope-btn .scope-desc {
+    display: block;
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: color 0.18s;
+    line-height: 1.5;
+  }
+
+  .scope-btn.active {
+    border-color: var(--accent);
+    background: rgba(200,240,96,0.05);
+  }
+
+  .scope-btn.active .scope-title { color: var(--accent); }
+  .scope-btn.active .scope-desc { color: rgba(200,240,96,0.5); }
+
+  .scope-btn:hover:not(.active) { border-color: #404040; }
+
+  /* advanced options */
+  .adv-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .adv-field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .adv-field select,
+  .adv-field input[type="number"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.18s;
+    caret-color: var(--accent);
+  }
+
+  .adv-field select:focus,
+  .adv-field input[type="number"]:focus { border-color: var(--accent); }
+
+  .scrape-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scrape-btn:hover { background: #d8ff70; transform: translateY(-1px); }
+  .scrape-btn:active { transform: translateY(0); }
+  .scrape-btn:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; transform: none; }
+
+  /* ── ERROR ── */
+  .entry-error {
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--danger);
+    display: none;
+  }
+
+  .entry-error.show { display: block; }
+
+  /* ══════════════════════════════════════
+     SCREEN 2 — GALLERY
+  ══════════════════════════════════════ */
+  #screen-gallery {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(14,14,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .topbar-logo {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .topbar-url {
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .topbar-stats {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .topbar-stats strong { color: var(--accent); }
+
+  .topbar-back {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .topbar-back:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px 16px;
+    display: none;
+  }
+
+  .progress-wrap.show { display: block; }
+
+  .progress-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .progress-bar-bg {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    position: sticky;
+    top: 60px;
+    z-index: 99;
+    background: rgba(14,14,14,0.92);
+    backdrop-filter: blur(12px);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+  .toolbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .sel-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .sel-count strong { color: var(--text); }
+
+  .tb-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .tb-btn:hover { border-color: #555; color: var(--text); }
+
+  .tb-btn.primary {
+    background: var(--accent);
+    color: #0e0e0e;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+
+  .tb-btn.primary:hover { background: #d8ff70; }
+  .tb-btn.primary:disabled { background: var(--border); border-color: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+  .filter-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    outline: none;
+    width: 200px;
+    transition: border-color 0.18s;
+  }
+  .filter-input::placeholder { color: var(--text-dim); }
+  .filter-input:focus { border-color: var(--accent); }
+
+  /* ── EMPTY / ERROR STATES ── */
+  .gallery-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    gap: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    display: none;
+  }
+
+  .gallery-empty.show { display: flex; }
+
+  .gallery-empty .empty-icon { font-size: 40px; opacity: 0.3; }
+  .gallery-empty .empty-title { font-size: 15px; color: var(--text); font-family: 'Fraunces', serif; }
+  .gallery-empty .empty-msg { font-size: 12px; max-width: 360px; line-height: 1.6; }
+
+  /* ── GRID ── */
+  .gallery-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  /* ── IMAGE CARD ── */
+  .img-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .img-card:hover {
+    border-color: #404040;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .img-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 8px 32px rgba(200,240,96,0.12);
+  }
+
+  .img-thumb-wrap {
+    position: relative;
+    aspect-ratio: 4/3;
+    background: #111;
+    overflow: hidden;
+  }
+
+  .img-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+    display: block;
+  }
+
+  .img-card:hover .img-thumb { transform: scale(1.04); }
+
+  .img-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 26px;
+    height: 26px;
+    background: rgba(0,0,0,0.55);
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0.7;
+  }
+
+  .img-check:hover {
+    opacity: 1;
+    border-color: var(--accent);
+    transform: scale(1.1);
+  }
+
+  .img-card.selected .img-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    opacity: 1;
+  }
+
+  .img-check svg { display: none; }
+  .img-card.selected .img-check svg { display: block; }
+  .img-card.selected .img-check { opacity: 1; }
+
+  .img-meta {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .img-name {
+    font-size: 10px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .img-dims {
+    font-size: 10px;
+    color: var(--accent2);
+    background: rgba(96,212,240,0.08);
+    border: 1px solid rgba(96,212,240,0.18);
+    padding: 2px 7px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .img-dims.loading {
+    color: var(--text-dim);
+    background: transparent;
+    border-color: var(--border);
+  }
+
+  .img-dl-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .img-card:hover .img-dl-btn { opacity: 1; }
+  .img-dl-btn:hover { color: var(--accent); }
+
+  /* ── FORMAT BADGE ── */
+  .fmt-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.7);
+    color: var(--text-muted);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  /* ── LIGHTBOX ── */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+
+  .lightbox.show { display: flex; }
+
+  .lightbox-inner {
+    max-width: 90vw;
+    max-height: 90vh;
+    position: relative;
+    cursor: default;
+  }
+
+  .lightbox-inner img {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    display: block;
+    border-radius: 4px;
+  }
+
+  .lightbox-info {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lightbox-info .lb-dims { color: var(--accent2); }
+
+  .lightbox-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+
+  .lightbox-close:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    z-index: 999;
+    white-space: nowrap;
+    transition: transform 0.25s ease;
+    pointer-events: none;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── FORMAT FILTER PILLS ── */
+  .fmt-pills {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .fmt-pill {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.15s;
+  }
+
+  .fmt-pill:hover { border-color: #555; color: var(--text); }
+  .fmt-pill.active { border-color: var(--accent); color: var(--accent); background: rgba(200,240,96,0.07); }
+
+  /* ── BROKEN THUMB ── */
+  .thumb-broken {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px; background: #111;
+    color: var(--text-dim); font-size: 10px; text-align: center; padding: 12px;
+  }
+  .thumb-broken svg { opacity: 0.3; }
+  .thumb-broken .thumb-broken-label { color: var(--text-dim); font-size: 9px; line-height: 1.4; }
+  .thumb-retrying { opacity: 0.5; }
+
+  /* ── HIDDEN CARDS ── */
+  .img-card.hidden-img {
+    opacity: 0.25;
+    filter: grayscale(1);
+    pointer-events: none;
+  }
+  .img-card.hidden-img.reveal-hidden {
+    opacity: 0.4;
+    filter: grayscale(1);
+    pointer-events: all;
+    cursor: pointer;
+  }
+  .img-card.hidden-img.reveal-hidden:hover {
+    opacity: 0.7;
+  }
+  .hidden-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.7);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 3px;
+    pointer-events: none;
+    display: none;
+  }
+  .img-card.hidden-img .hidden-badge { display: block; }
+  .img-card.hidden-img.reveal-hidden .hidden-badge { display: none; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #404040; }
+
+  /* responsive */
+  @media (max-width: 540px) {
+    .adv-row { grid-template-columns: 1fr; }
+    .topbar-url { display: none; }
+    .filter-input { width: 140px; }
+    .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  }
+
+  /* ── SCANNING STATE ── */
+  .gallery-scanning {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    gap: 16px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .gallery-scanning.show { display: flex; }
+  .scan-spinner {
+    width: 36px; height: 36px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .scan-title { font-family: 'Fraunces', serif; font-size: 15px; color: var(--text); }
+  .scan-msg { font-size: 12px; max-width: 360px; line-height: 1.6; }
+
+  /* ── CRAWL LOG ── */
+  .crawl-log-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+    position: relative;
+  }
+  .crawl-log-toggle:hover { border-color: #555; color: var(--text); }
+  .crawl-log-toggle .log-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #0e0e0e;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .crawl-log-toggle .log-badge.has-unseen {
+    background: var(--accent2);
+  }
+
+  .crawl-log-panel {
+    display: none;
+    position: fixed;
+    top: 60px;
+    right: 0;
+    width: 380px;
+    max-width: 100vw;
+    height: calc(100vh - 60px);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 200;
+    flex-direction: column;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+  }
+  .crawl-log-panel.open { display: flex; }
+
+  .log-header {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .log-header-left { display: flex; flex-direction: column; gap: 2px; }
+  .log-title { font-size: 12px; color: var(--text); letter-spacing: 0.06em; }
+  .log-subtitle { font-size: 10px; color: var(--text-muted); }
+
+  .log-close {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .log-close:hover { border-color: #555; color: var(--text); }
+
+  .log-legend {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-muted); }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .legend-dot.done { background: var(--accent); }
+  .legend-dot.failed { background: var(--danger); }
+  .legend-dot.queued { background: var(--border); }
+  .legend-dot.active { background: var(--accent2); }
+
+  .log-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .log-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 18px;
+    transition: background 0.1s;
+    cursor: default;
+  }
+  .log-entry:hover { background: rgba(255,255,255,0.03); }
+
+  .log-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 4px;
+  }
+  .log-dot.done { background: var(--accent); }
+  .log-dot.failed { background: var(--danger); }
+  .log-dot.active { background: var(--accent2); animation: pulse 1s ease-in-out infinite; }
+  .log-dot.queued { background: var(--border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+  }
+
+  .log-text { flex: 1; min-width: 0; }
+  .log-url {
+    font-size: 10px; color: var(--text-muted);
+    word-break: break-all; line-height: 1.5;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .log-entry:hover .log-url { white-space: normal; }
+  .log-meta { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .log-meta.found { color: var(--accent); }
+  .log-meta.failed { color: var(--danger); }
+
+  .log-rescrape {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: all 0.15s;
+  }
+  .log-rescrape:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .log-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .log-footer .tb-btn { flex: 1; text-align: center; font-size: 10px; }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1 — URL ENTRY
+══════════════════════════════════════ -->
+<div id="screen-entry" class="screen active">
+  <div class="entry-inner">
+    <div class="wordmark"><span>Image</span>Harvest</div>
+    <h1 class="entry-headline">Find every<br><em>image</em> on<br>a site.</h1>
+    <p class="entry-sub">Enter a URL to scrape all image assets from a single page or the entire subdomain.</p>
+
+    <label class="url-label" for="url-input">Target URL</label>
+    <div class="url-field-wrap">
+      <input id="url-input" class="url-input" type="url" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="scope-row">
+      <button class="scope-btn active" data-scope="single" onclick="setScope('single')">
+        <span class="scope-title">Single page</span>
+        <span class="scope-desc">Only scrape images from the URL entered above.</span>
+      </button>
+      <button class="scope-btn" data-scope="subdomain" onclick="setScope('subdomain')">
+        <span class="scope-title">Entire subdomain</span>
+        <span class="scope-desc">Crawl all linked pages within the same subdomain.</span>
+      </button>
+    </div>
+
+    <div class="adv-row">
+
+      <div class="adv-field" id="page-limit-field">
+        <label>Max pages (subdomain)</label>
+        <input type="number" id="page-limit" value="20" min="1" max="200" />
+      </div>
+    </div>
+
+    <button class="scrape-btn" id="scrape-btn" onclick="startScrape()">Start Scraping →</button>
+    <div class="entry-error" id="entry-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2 — GALLERY
+══════════════════════════════════════ -->
+<div id="screen-gallery" class="screen">
+  <div class="topbar">
+    <button class="topbar-back" onclick="goBack()">← New Scrape</button>
+    <div class="topbar-logo">ImageHarvest</div>
+    <div class="topbar-url" id="topbar-url"></div>
+    <div class="topbar-stats" id="topbar-stats"></div>
+  </div>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-label-text">Scanning pages…</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="sel-count" id="sel-count"><strong>0</strong> selected</span>
+      <button class="tb-btn" onclick="selectAll()">Select All</button>
+      <button class="tb-btn" onclick="selectNone()">Deselect All</button>
+      <button class="tb-btn" id="show-hidden-btn" onclick="toggleShowHidden()" style="display:none">Show Hidden <span id="hidden-count-badge" style="background:var(--border);color:var(--text-muted);font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span></button>
+      <div class="fmt-pills" id="fmt-pills"></div>
+    </div>
+    <div class="toolbar-right">
+      <select class="adv-field select" id="sort-select" onchange="applySort()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-family:'DM Mono',monospace;font-size:11px;padding:7px 12px;border-radius:4px;outline:none;cursor:pointer;">
+        <option value="size-desc">Largest first</option>
+        <option value="size-asc">Smallest first</option>
+        <option value="name-asc">Name A–Z</option>
+        <option value="name-desc">Name Z–A</option>
+        <option value="found">Order found</option>
+      </select>
+      <input class="filter-input" id="filter-input" type="text" placeholder="Filter by filename…" oninput="applyFilter()" />
+      <button class="tb-btn" onclick="downloadSelected()" id="batch-dl-btn" style="display:none">⬇ Download Selected</button>
+      <button class="tb-btn" id="hide-btn" onclick="hideSelected()" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:5px;margin-top:-1px"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>Hide Selected
+      </button>
+      <button class="crawl-log-toggle" id="crawl-log-toggle" onclick="toggleCrawlLog()" style="display:none">
+        Pages <span class="log-badge" id="log-badge">0</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="gallery-empty" id="gallery-empty">
+    <div class="empty-icon">◻</div>
+    <div class="empty-title">No images found</div>
+    <div class="empty-msg" id="gallery-empty-msg">No images were found matching your current filter, or the page returned no recognisable image assets.</div>
+  </div>
+
+  <div class="gallery-scroll" id="gallery-scroll">
+    <div class="gallery-grid" id="gallery-grid"></div>
+  </div>
+
+  <!-- SCANNING STATE -->
+  <div class="gallery-scanning" id="gallery-scanning">
+    <div class="scan-spinner"></div>
+    <div class="scan-title">Scanning in progress…</div>
+    <div class="scan-msg">Images will appear as they are found. Please wait while the page is being scraped.</div>
+  </div>
+</div>
+
+<!-- CRAWL LOG PANEL -->
+<div class="crawl-log-panel" id="crawl-log-panel">
+  <div class="log-header">
+    <div class="log-header-left">
+      <div class="log-title">PAGE CRAWL LOG</div>
+      <div class="log-subtitle" id="log-subtitle">0 pages scanned</div>
+    </div>
+    <button class="log-close" onclick="toggleCrawlLog()">✕ Close</button>
+  </div>
+  <div class="log-legend">
+    <div class="legend-item"><div class="legend-dot active"></div> Scanning</div>
+    <div class="legend-item"><div class="legend-dot done"></div> Done</div>
+    <div class="legend-item"><div class="legend-dot failed"></div> Failed</div>
+    <div class="legend-item"><div class="legend-dot queued"></div> Queued</div>
+  </div>
+  <div class="log-scroll" id="log-scroll"></div>
+  <div class="log-footer">
+    <button class="tb-btn" onclick="rescrapeAllFailed()">↺ Retry Failed</button>
+    <button class="tb-btn" onclick="scrapeRemainingQueued()">▶ Scrape Next Batch</button>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕ Close</button>
+    <img id="lightbox-img" src="" alt="" />
+    <div class="lightbox-info">
+      <span id="lb-name"></span>
+      <span class="lb-dims" id="lb-dims"></span>
+      <button class="tb-btn primary" onclick="downloadOne(currentLightboxUrl)" style="font-size:11px;padding:5px 12px">⬇ Download</button>
+    </div>
+    <div id="lb-source-wrap" style="margin-top:10px; text-align:center; display:none;">
+      <span style="font-size:10px; color:var(--text-muted); margin-right:6px;">Found on:</span>
+      <a id="lb-source-link" href="" target="_blank" rel="noopener"
+         style="font-size:10px; color:var(--accent2); text-decoration:none; border-bottom:1px solid rgba(96,212,240,0.3); padding-bottom:1px; word-break:break-all; transition: color 0.15s;"
+         onmouseover="this.style.color='#90e8ff'" onmouseout="this.style.color='var(--accent2)'"></a>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let scope = 'single';
+let allImages = [];      // { url, filename, format, w, h, dimsLoaded }
+let selectedSet = new Set();
+let activeFormat = 'all';
+let filterText = '';
+let currentLightboxUrl = null;
+let scrapeAborted = false;
+let isScanning = false;
+let hiddenSet = new Set();  // indices of hidden images
+let showingHidden = false;  // whether hidden images are currently revealed
+
+// Crawl log: array of { url, status: 'queued'|'active'|'done'|'failed', found: 0 }
+let crawlLog = [];
+let crawlLogMap = new Map(); // url -> index in crawlLog
+let unseenLogCount = 0;
+
+// ── SCOPE TOGGLE ──
+function setScope(s) {
+  scope = s;
+  document.querySelectorAll('.scope-btn').forEach(b => b.classList.toggle('active', b.dataset.scope === s));
+  document.getElementById('page-limit-field').style.opacity = s === 'subdomain' ? '1' : '0.4';
+}
+setScope('single');
+
+// ── ENTRY VALIDATION ──
+function showError(msg) {
+  const el = document.getElementById('entry-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearError() {
+  document.getElementById('entry-error').classList.remove('show');
+}
+
+// ── PROXY HELPER ──
+function proxied(url) {
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+}
+
+// ── PROXY STRATEGIES ──
+const PROXY_STRATEGIES = [
+  async (url) => {
+    // corsproxy.io works with null origin (file://)
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+    if (!r.ok) throw new Error(`corsproxy HTTP ${r.status}`);
+    return r.text();
+  },
+  async (url) => {
+    // htmldriven cors-proxy
+    const r = await fetch(`https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`);
+    if (!r.ok) throw new Error(`htmldriven HTTP ${r.status}`);
+    return r.text();
+  },
+  async (url) => {
+    const r = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`);
+    if (!r.ok) throw new Error(`codetabs HTTP ${r.status}`);
+    return r.text();
+  }
+];
+
+function withTimeout(promise, ms = 15000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+  ]);
+}
+
+// ── FETCH HTML ──
+async function fetchHTML(url) {
+  const errors = [];
+  for (const strategy of PROXY_STRATEGIES) {
+    try {
+      return await withTimeout(strategy(url));
+    } catch (e) {
+      errors.push(e.message);
+    }
+  }
+  throw new Error(`All proxies failed: ${errors.join(' | ')}`);
+}
+
+// ── EXTRACT IMAGES FROM HTML ──
+function extractImages(html, baseUrl) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const base = new URL(baseUrl);
+  const found = new Set();
+
+  const IMAGE_EXT = /\.(jpe?g|png|gif|webp|svg|bmp|tiff?|avif|ico)(\?|#|$)/i;
+
+  const addUrl = (raw) => {
+    if (!raw) return;
+    raw = raw.trim();
+    if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return;
+    // handle srcset entries like "img.jpg 2x" or "img.jpg 800w"
+    raw = raw.split(/\s+/)[0];
+    try {
+      const abs = new URL(raw, base).href;
+      if (IMAGE_EXT.test(abs)) found.add(abs);
+    } catch {}
+  };
+
+  // All possible lazy-load + standard src attributes
+  const SRC_ATTRS = [
+    'src', 'data-src', 'data-lazy', 'data-lazy-src', 'data-original',
+    'data-img-src', 'data-image', 'data-url', 'data-bg',
+    'data-background', 'data-background-image', 'data-hi-res-src',
+    'data-srcset', 'data-lazy-srcset', 'data-retina',
+    'lazy-src', 'lazysrc', 'data-echo', 'data-splide-lazy'
+  ];
+
+  // <img> — every possible src/lazy variant
+  doc.querySelectorAll('img').forEach(img => {
+    SRC_ATTRS.forEach(attr => addUrl(img.getAttribute(attr)));
+    const ss = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+    if (ss) ss.split(',').forEach(s => addUrl(s.trim()));
+  });
+
+  // <picture><source>
+  doc.querySelectorAll('source').forEach(s => {
+    addUrl(s.getAttribute('src'));
+    addUrl(s.getAttribute('data-src'));
+    const ss = s.getAttribute('srcset') || s.getAttribute('data-srcset');
+    if (ss) ss.split(',').forEach(x => addUrl(x.trim()));
+  });
+
+  // Any element with data-* bg/image attributes (divs, sections, etc.)
+  doc.querySelectorAll('*').forEach(el => {
+    SRC_ATTRS.forEach(attr => {
+      const val = el.getAttribute(attr);
+      if (val && IMAGE_EXT.test(val)) addUrl(val);
+    });
+  });
+
+  // Inline style background-image on any element
+  doc.querySelectorAll('[style]').forEach(el => {
+    const style = el.getAttribute('style') || '';
+    const matches = style.matchAll(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/gi);
+    for (const m of matches) addUrl(m[1]);
+  });
+
+  // <style> blocks
+  doc.querySelectorAll('style').forEach(s => {
+    const matches = s.textContent.matchAll(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/gi);
+    for (const m of matches) addUrl(m[1]);
+  });
+
+  // Entire raw HTML regex sweep — catches images in JS vars, JSON blobs, inline scripts
+  const rawMatches = html.matchAll(/(?:["'\s(=,])((?:https?:)?\/\/[^"'\s),]+\.(?:jpe?g|png|gif|webp|svg|bmp|avif)(?:\?[^"'\s)]*)?)/gi);
+  for (const m of rawMatches) addUrl(m[1]);
+
+  // Also sweep for relative paths in JS/JSON like "/wp-content/uploads/img.jpg"
+  const relMatches = html.matchAll(/["'](\/[^"'\s]+\.(?:jpe?g|png|gif|webp|svg|bmp|avif)(?:\?[^"'\s)]*)?)['"]/gi);
+  for (const m of relMatches) addUrl(m[1]);
+
+  // Meta tags
+  doc.querySelectorAll('meta[property="og:image"], meta[name="twitter:image"], meta[name="thumbnail"], meta[itemprop="image"]')
+    .forEach(m => addUrl(m.getAttribute('content')));
+
+  // <link rel="image_src">
+  doc.querySelectorAll('link[rel="image_src"]').forEach(l => addUrl(l.getAttribute('href')));
+
+  // <a href> pointing directly to image files
+  doc.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (href && IMAGE_EXT.test(href)) addUrl(href);
+  });
+
+  // noscript blocks (lazy loaders often put real src here)
+  doc.querySelectorAll('noscript').forEach(ns => {
+    const inner = ns.textContent || ns.innerHTML;
+    const imgMatches = inner.matchAll(/src=["']([^"']+)["']/gi);
+    for (const m of imgMatches) addUrl(m[1]);
+    const srcsetMatches = inner.matchAll(/srcset=["']([^"']+)["']/gi);
+    for (const m of srcsetMatches) m[1].split(',').forEach(s => addUrl(s.trim()));
+  });
+
+  return [...found];
+}
+
+// ── EXTRACT INTERNAL LINKS ──
+function extractLinks(html, baseUrl) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const base = new URL(baseUrl);
+  const links = new Set();
+  doc.querySelectorAll('a[href]').forEach(a => {
+    try {
+      const u = new URL(a.getAttribute('href'), base);
+      if (u.hostname === base.hostname && (u.pathname.match(/\/$/) || !u.pathname.match(/\.[a-z]{2,5}$/i) || u.pathname.match(/\.html?$/i))) {
+        u.hash = '';
+        u.search = ''; // ignore query params for dedup
+        links.add(u.href.replace(/\/+$/, '') || '/');
+      }
+    } catch {}
+  });
+  return [...links];
+}
+
+// ── SMART IMAGE DEDUP ──
+// Strips WP-style dimension suffixes (-300x200, -1024x768, @2x, etc.)
+// Groups images by base key, keeps only the largest known version.
+function getBaseKey(url) {
+  try {
+    const u = new URL(url);
+    // Remove query string for key purposes
+    let path = u.pathname;
+    // Strip WP thumbnail suffixes: -300x200, -1024x768, -150x150 etc.
+    path = path.replace(/-\d+x\d+(\.[a-z]+)$/i, '$1');
+    // Strip retina suffixes: @2x, @3x, -2x
+    path = path.replace(/[@-]\d+x(\.[a-z]+)$/i, '$1');
+    // Strip size keywords sometimes appended: -small, -medium, -large, -thumb, -thumbnail
+    path = path.replace(/-(small|medium|large|thumb|thumbnail|sm|md|lg|xl|xxl|hero|full|original)(\.[a-z]+)$/i, '$2');
+    return u.hostname + path.toLowerCase();
+  } catch {
+    return url;
+  }
+}
+
+function getPixelArea(entry) {
+  if (entry.w && entry.h) return entry.w * entry.h;
+  // Estimate from WP suffix in URL if dims not loaded yet
+  const m = entry.url.match(/-(\d+)x(\d+)\.[a-z]+(\?|$)/i);
+  if (m) return parseInt(m[1]) * parseInt(m[2]);
+  return 0;
+}
+
+// Map of baseKey -> index in allImages
+const imageKeyMap = new Map();
+
+function addImageSmart(imgUrl, sourcePageUrl) {
+  const baseKey = getBaseKey(imgUrl);
+  const filename = decodeURIComponent(imgUrl.split('/').pop().split('?')[0]) || 'image';
+  const format = (imgUrl.match(/\.([a-z]{2,5})(\?|$)/i) || [])[1]?.toLowerCase() || '?';
+
+  if (imageKeyMap.has(baseKey)) {
+    const existingIdx = imageKeyMap.get(baseKey);
+    const existing = allImages[existingIdx];
+    // Compare: prefer the one with larger pixel area, fall back to longer URL path (usually higher res)
+    const existingArea = getPixelArea(existing);
+    const newM = imgUrl.match(/-(\d+)x(\d+)\.[a-z]+(\?|$)/i);
+    const newArea = newM ? parseInt(newM[1]) * parseInt(newM[2]) : 0;
+    const existingPathLen = existing.url.length;
+    const newPathLen = imgUrl.length;
+
+    let replaceWith = null;
+    if (newArea > 0 && existingArea > 0) {
+      if (newArea > existingArea) replaceWith = imgUrl;
+    } else if (newArea > 0 && existingArea === 0) {
+      // existing has no known dims, new has explicit dims — keep existing (likely full size, no suffix)
+      replaceWith = null;
+    } else if (newArea === 0 && existingArea > 0) {
+      // new has no suffix (likely full size original), replace
+      replaceWith = imgUrl;
+    } else {
+      // Neither has dim suffix — prefer the shorter, cleaner URL (no suffix = original)
+      if (newPathLen < existingPathLen) replaceWith = imgUrl;
+    }
+
+    if (replaceWith) {
+      // Update in place
+      existing.url = replaceWith;
+      existing.filename = decodeURIComponent(replaceWith.split('/').pop().split('?')[0]) || 'image';
+      existing.format = (replaceWith.match(/\.([a-z]{2,5})(\?|$)/i) || [])[1]?.toLowerCase() || '?';
+      existing.w = null;
+      existing.h = null;
+      existing.dimsLoaded = false;
+      // Re-render the card
+      const card = document.getElementById(`card-${existingIdx}`);
+      if (card) {
+        card.dataset.format = existing.format;
+        card.dataset.name = existing.filename.toLowerCase();
+        const thumb = card.querySelector('.img-thumb');
+        if (thumb) thumb.src = replaceWith;
+        const nameEl = card.querySelector('.img-name');
+        if (nameEl) { nameEl.textContent = existing.filename; nameEl.title = existing.filename; }
+        const fmtEl = card.querySelector('.fmt-badge');
+        if (fmtEl) fmtEl.textContent = existing.format;
+        const dlBtn = card.querySelector('.img-dl-btn');
+        if (dlBtn) dlBtn.setAttribute('onclick', `event.stopPropagation();downloadOne('${replaceWith}')`);
+        const dimsEl = document.getElementById(`dims-${existingIdx}`);
+        if (dimsEl) { dimsEl.textContent = '…'; dimsEl.classList.add('loading'); }
+        loadDims(existing, existingIdx);
+      }
+    }
+    return; // already represented
+  }
+
+  // New unique image
+  const entry = { url: imgUrl, filename, format, w: null, h: null, dimsLoaded: false, sourcePage: sourcePageUrl || '' };
+  const idx = allImages.length;
+  allImages.push(entry);
+  imageKeyMap.set(baseKey, idx);
+  renderCard(entry, idx);
+  loadDims(entry, idx);
+  applySort();
+
+}
+
+// ── MAIN SCRAPE ──
+async function startScrape() {
+  clearError();
+  const rawUrl = document.getElementById('url-input').value.trim();
+  if (!rawUrl) { showError('Please enter a URL.'); return; }
+  let targetUrl;
+  try { targetUrl = new URL(rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl).href; }
+  catch { showError('Invalid URL — please include https://'); return; }
+
+  document.getElementById('scrape-btn').disabled = true;
+  scrapeAborted = false;
+  isScanning = true;
+  allImages = [];
+  selectedSet.clear();
+  imageKeyMap.clear();
+  hiddenSet.clear();
+  showingHidden = false;
+
+
+  switchToGallery(targetUrl);
+
+  const maxPages = parseInt(document.getElementById('page-limit').value) || 20;
+  const visited = new Set();
+  const queue = [targetUrl.replace(/\/+$/, '')];
+  let pagesScraped = 0;
+  let totalQueue = 1;
+
+  setProgress(0, 'Connecting…', true);
+
+  // Show log toggle button
+  document.getElementById('crawl-log-toggle').style.display = '';
+
+  // Pre-populate queue in log
+  addToLog(queue[0], 'queued');
+
+  while (queue.length > 0 && !scrapeAborted) {
+    if (scope === 'subdomain' && pagesScraped >= maxPages) break;
+
+    const url = queue.shift();
+    if (visited.has(url)) continue;
+    visited.add(url);
+
+    // Mark active in log
+    if (!crawlLogMap.has(url)) addToLog(url, 'active');
+    else updateLogEntry(url, 'active');
+
+    setProgress(
+      Math.round((pagesScraped / Math.max(totalQueue, 1)) * 100),
+      `Scanning page ${pagesScraped + 1}${scope === 'subdomain' ? ` of ~${totalQueue}` : ''}… ${url.split('/').pop() || '/'}`
+    );
+
+    let foundCount = 0;
+    try {
+      const html = await fetchHTML(url);
+      const imgs = extractImages(html, url);
+      const beforeCount = allImages.length;
+
+      imgs.forEach(imgUrl => addImageSmart(imgUrl, url));
+      foundCount = allImages.length - beforeCount;
+
+      if (scope === 'subdomain') {
+        const newLinks = extractLinks(html, url).filter(l => !visited.has(l) && !queue.includes(l));
+        newLinks.forEach(l => { if (!crawlLogMap.has(l)) addToLog(l, 'queued'); });
+        queue.push(...newLinks);
+        totalQueue = visited.size + queue.length;
+      }
+      updateLogEntry(url, 'done', foundCount);
+    } catch (e) {
+      console.warn('Failed to fetch', url, e.message);
+      updateLogEntry(url, 'failed', 0);
+    }
+
+    pagesScraped++;
+    updateStats();
+    updateLogSubtitle();
+  }
+
+  // Mark any still-queued as pending (not reached due to page limit)
+  crawlLog.forEach(entry => {
+    if (entry.status === 'queued') updateLogEntry(entry.url, 'queued');
+  });
+
+  setProgress(100, `Done — ${pagesScraped} page${pagesScraped !== 1 ? 's' : ''} scanned`, false);
+  setTimeout(() => document.getElementById('progress-wrap').classList.remove('show'), 2200);
+
+  updateStats();
+  updateEmpty();
+  document.getElementById('scrape-btn').disabled = false;
+  buildFormatPills();
+  updateLogSubtitle();
+}
+
+// ── RENDER CARD ──
+function renderCard(entry, idx) {
+  const grid = document.getElementById('gallery-grid');
+  document.getElementById('gallery-empty').classList.remove('show');
+
+  const card = document.createElement('div');
+  card.className = 'img-card';
+  card.id = `card-${idx}`;
+  card.dataset.idx = idx;
+  card.dataset.format = entry.format;
+  card.dataset.name = entry.filename.toLowerCase();
+
+  card.innerHTML = `
+    <div class="img-thumb-wrap">
+      <img class="img-thumb" src="${entry.url}" alt="${entry.filename}" loading="lazy" onerror="handleThumbError(this)" />
+      <div class="img-check">
+        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+          <path d="M1 5L4.5 8.5L11 1.5" stroke="#0e0e0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="fmt-badge">${entry.format}</span>
+    </div>
+    <div class="img-meta">
+      <span class="img-name" title="${entry.filename}">${entry.filename}</span>
+      <span class="img-dims loading" id="dims-${idx}">…</span>
+      <button class="img-dl-btn" title="Download" onclick="event.stopPropagation();downloadOne('${entry.url}')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 7l3 3 3-3M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  `;
+
+  // Checkbox click = select/deselect only
+  card.querySelector('.img-check').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSelect(idx, card);
+  });
+
+  // Card click = lightbox (unless on dl button or checkbox), or unhide if in reveal mode
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.img-dl-btn')) return;
+    if (e.target.closest('.img-check')) return;
+    if (card.classList.contains('reveal-hidden')) {
+      unhideCard(idx);
+      return;
+    }
+    openLightbox(entry.url, entry.filename, entry.w, entry.h, entry.sourcePage);
+  });
+
+  grid.appendChild(card);
+}
+
+// ── LOAD DIMENSIONS ──
+function loadDims(entry, idx) {
+  const img = new Image();
+  img.onload = () => {
+    entry.w = img.naturalWidth;
+    entry.h = img.naturalHeight;
+    entry.dimsLoaded = true;
+    const el = document.getElementById(`dims-${idx}`);
+    if (el) {
+      el.textContent = `${entry.w} × ${entry.h}`;
+      el.classList.remove('loading');
+    }
+    onDimsLoaded(idx);
+  };
+  img.onerror = () => {
+    if (!img.dataset.triedProxy) {
+      img.dataset.triedProxy = '1';
+      img.src = proxied(entry.url.split('?')[0]);
+      return;
+    }
+    const el = document.getElementById(`dims-${idx}`);
+    if (el) { el.textContent = 'n/a'; el.classList.remove('loading'); }
+  };
+  img.src = entry.url;
+}
+
+// ── SELECTION ──
+function toggleSelect(idx, card) {
+  if (selectedSet.has(idx)) {
+    selectedSet.delete(idx);
+    card.classList.remove('selected');
+  } else {
+    selectedSet.add(idx);
+    card.classList.add('selected');
+  }
+  updateSelCount();
+}
+
+function selectAll() {
+  document.querySelectorAll('.img-card:not([style*="display: none"]):not([style*="display:none"])').forEach(card => {
+    const idx = parseInt(card.dataset.idx);
+    selectedSet.add(idx);
+    card.classList.add('selected');
+  });
+  updateSelCount();
+}
+
+function selectNone() {
+  selectedSet.clear();
+  document.querySelectorAll('.img-card').forEach(c => c.classList.remove('selected'));
+  updateSelCount();
+}
+
+function updateSelCount() {
+  const n = selectedSet.size;
+  document.getElementById('sel-count').innerHTML = `<strong>${n}</strong> selected`;
+  const btn = document.getElementById('batch-dl-btn');
+  btn.style.display = n > 0 ? 'block' : 'none';
+  btn.textContent = `⬇ Download ${n} image${n !== 1 ? 's' : ''}`;
+  btn.classList.toggle('primary', n > 0);
+  const hideBtn = document.getElementById('hide-btn');
+  if (hideBtn) hideBtn.style.display = n > 0 ? '' : 'none';
+}
+
+// ── FORMAT PILLS ──
+function buildFormatPills() {
+  const formats = [...new Set(allImages.map(i => i.format))].filter(f => f !== '?');
+  const wrap = document.getElementById('fmt-pills');
+  wrap.innerHTML = '';
+  if (formats.length < 2) return;
+
+  const all = document.createElement('button');
+  all.className = 'fmt-pill active';
+  all.textContent = 'All';
+  all.onclick = () => { activeFormat = 'all'; document.querySelectorAll('.fmt-pill').forEach(p => p.classList.remove('active')); all.classList.add('active'); applyFilter(); };
+  wrap.appendChild(all);
+
+  formats.forEach(fmt => {
+    const btn = document.createElement('button');
+    btn.className = 'fmt-pill';
+    btn.textContent = fmt.toUpperCase();
+    btn.onclick = () => { activeFormat = fmt; document.querySelectorAll('.fmt-pill').forEach(p => p.classList.remove('active')); btn.classList.add('active'); applyFilter(); };
+    wrap.appendChild(btn);
+  });
+}
+
+// ── SORT ──
+function applySort() {
+  const val = document.getElementById('sort-select')?.value || 'size-desc';
+  const grid = document.getElementById('gallery-grid');
+  const cards = [...grid.querySelectorAll('.img-card')];
+
+  cards.sort((a, b) => {
+    const ai = parseInt(a.dataset.idx);
+    const bi = parseInt(b.dataset.idx);
+    const ae = allImages[ai];
+    const be = allImages[bi];
+
+    if (val === 'size-desc' || val === 'size-asc') {
+      const aArea = (ae.w && ae.h) ? ae.w * ae.h : getPixelArea(ae);
+      const bArea = (be.w && be.h) ? be.w * be.h : getPixelArea(be);
+      return val === 'size-desc' ? bArea - aArea : aArea - bArea;
+    }
+    if (val === 'name-asc') return ae.filename.localeCompare(be.filename);
+    if (val === 'name-desc') return be.filename.localeCompare(ae.filename);
+    if (val === 'found') return ai - bi;
+    return 0;
+  });
+
+  cards.forEach(card => grid.appendChild(card));
+}
+
+// Re-sort whenever a card's dimensions finish loading
+function onDimsLoaded(idx) {
+  const sortVal = document.getElementById('sort-select')?.value || 'size-desc';
+  if (sortVal === 'size-desc' || sortVal === 'size-asc') applySort();
+}
+
+// ── FILTER ──
+function applyFilter() {
+  filterText = document.getElementById('filter-input').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('.img-card').forEach(card => {
+    const idx = parseInt(card.dataset.idx);
+    const isHidden = hiddenSet.has(idx);
+    if (isHidden && !showingHidden) { card.style.display = 'none'; return; }
+
+    const nameMatch = !filterText || card.dataset.name.includes(filterText);
+    const fmtMatch = activeFormat === 'all' || card.dataset.format === activeFormat;
+
+    const show = nameMatch && fmtMatch;
+    card.style.display = show ? '' : 'none';
+    if (show && !isHidden) visible++;
+  });
+  updateEmpty(visible);
+}
+
+// ── EMPTY STATE ──
+function updateEmpty(visible) {
+  const empty = document.getElementById('gallery-empty');
+  const scanning = document.getElementById('gallery-scanning');
+  const count = visible !== undefined ? visible : document.querySelectorAll('.img-card:not([style*="display: none"]):not([style*="display:none"])').length;
+
+  if (isScanning && allImages.length === 0) {
+    // Show scanning state, hide empty
+    scanning.classList.add('show');
+    empty.classList.remove('show');
+  } else {
+    scanning.classList.remove('show');
+    if (count === 0 && allImages.length > 0) {
+      document.getElementById('gallery-empty-msg').textContent = 'No images match the current filter.';
+      empty.classList.add('show');
+    } else if (allImages.length === 0) {
+      document.getElementById('gallery-empty-msg').textContent = 'No images were found. The site may block scraping, or there are no image assets on this page.';
+      empty.classList.add('show');
+    } else {
+      empty.classList.remove('show');
+    }
+  }
+}
+
+// ── STATS ──
+function updateStats() {
+  document.getElementById('topbar-stats').innerHTML = `<strong>${allImages.length}</strong> images found`;
+}
+
+// ── PROGRESS ──
+function setProgress(pct, label, show) {
+  if (show !== undefined) {
+    document.getElementById('progress-wrap').classList.toggle('show', show);
+    isScanning = show;
+    updateEmpty();
+  }
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label-text').textContent = label;
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+// ── DOWNLOAD ──
+async function downloadOne(url) {
+  const filename = decodeURIComponent(url.split('/').pop().split('?')[0]) || 'image';
+  try {
+    const blob = await fetchAsBlob(url);
+    anchorDownload(blob, filename);
+    toast('⬇ Downloading ' + filename);
+  } catch(e) {
+    console.warn('Download failed:', url, e.message);
+    toast('Could not download ' + filename);
+  }
+}
+
+async function fetchAsBlob(url) {
+  // 1. Direct CORS fetch
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (res.ok) return await res.blob();
+  } catch {}
+  // 2. Proxy fetch
+  try {
+    const res = await fetch(proxied(url));
+    if (res.ok) return await res.blob();
+  } catch {}
+  // 3. Canvas export (works for images already rendered in browser)
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 800;
+      canvas.height = img.naturalHeight || 600;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas export failed')));
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  });
+}
+
+// Save a single blob to a directory handle (File System Access API)
+async function saveBlobToDir(dirHandle, filename, blob) {
+  const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+// Fallback: anchor-click download (no folder picker)
+function anchorDownload(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 15000);
+}
+
+async function downloadSelected() {
+  if (selectedSet.size === 0) return;
+  const indices = [...selectedSet];
+  const total = indices.length;
+  const btn = document.getElementById('batch-dl-btn');
+  const origText = btn.textContent;
+
+  // Try to open a folder picker (Chrome/Edge only)
+  let dirHandle = null;
+  if (window.showDirectoryPicker) {
+    try {
+      dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled picker — abort entirely
+      // showDirectoryPicker failed for another reason, fall back to anchor downloads
+      dirHandle = null;
+    }
+  }
+
+  // Show download progress modal
+  showDownloadModal(total);
+
+  let done = 0;
+  let failed = 0;
+
+  for (const idx of indices) {
+    const imgEntry = allImages[idx];
+    const url = imgEntry.url;
+    const filename = decodeURIComponent(url.split('/').pop().split('?')[0]) || `image-${idx}`;
+
+    updateDownloadModal(done, total, filename);
+    btn.textContent = `⬇ ${done}/${total}`;
+
+    try {
+      const blob = await fetchAsBlob(url);
+      if (dirHandle) {
+        // Ensure unique filename in case of collisions
+        let safeName = filename;
+        let attempt = 0;
+        while (true) {
+          try {
+            await saveBlobToDir(dirHandle, safeName, blob);
+            break;
+          } catch (e) {
+            if (e.name === 'TypeMismatchError' || attempt > 10) throw e;
+            attempt++;
+            const ext = filename.includes('.') ? '.' + filename.split('.').pop() : '';
+            const base = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename;
+            safeName = `${base}-${attempt}${ext}`;
+          }
+        }
+      } else {
+        anchorDownload(blob, filename);
+        // Stagger anchor downloads so browser handles them
+        await new Promise(r => setTimeout(r, 500));
+      }
+      done++;
+    } catch (e) {
+      console.warn('Download failed:', url, e.message);
+      failed++;
+      done++;
+    }
+
+    updateDownloadModal(done, total, filename);
+  }
+
+  btn.textContent = origText;
+  finishDownloadModal(done - failed, failed, !!dirHandle);
+}
+
+// ── DOWNLOAD PROGRESS MODAL ──
+function showDownloadModal(total) {
+  let modal = document.getElementById('dl-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'dl-modal';
+    modal.style.cssText = `
+      position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:2000;
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    `;
+    modal.innerHTML = `
+      <div style="background:#1e1e1e; border:1px solid #2a2a2a; border-radius:6px;
+                  padding:28px 32px; width:100%; max-width:400px; font-family:'DM Mono',monospace;">
+        <div style="font-family:'Fraunces',serif; font-size:17px; margin-bottom:6px; color:#f0ede6;">
+          Downloading images
+        </div>
+        <div id="dl-modal-file" style="font-size:10px; color:#6b6b6b; margin-bottom:18px;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Preparing…</div>
+        <div style="height:3px; background:#2a2a2a; border-radius:2px; overflow:hidden; margin-bottom:12px;">
+          <div id="dl-modal-bar" style="height:100%; background:#c8f060; border-radius:2px;
+               transition:width 0.3s ease; width:0%"></div>
+        </div>
+        <div id="dl-modal-count" style="font-size:11px; color:#6b6b6b;">0 of ${total}</div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  document.getElementById('dl-modal-count').textContent = `0 of ${total}`;
+  document.getElementById('dl-modal-bar').style.width = '0%';
+  document.getElementById('dl-modal-file').textContent = 'Preparing…';
+}
+
+function updateDownloadModal(done, total, filename) {
+  const pct = Math.round((done / total) * 100);
+  const bar = document.getElementById('dl-modal-bar');
+  const count = document.getElementById('dl-modal-count');
+  const file = document.getElementById('dl-modal-file');
+  if (bar) bar.style.width = pct + '%';
+  if (count) count.textContent = `${done} of ${total}`;
+  if (file) file.textContent = filename;
+}
+
+function finishDownloadModal(succeeded, failed, usedFolder) {
+  const modal = document.getElementById('dl-modal');
+  if (!modal) return;
+  const bar = document.getElementById('dl-modal-bar');
+  if (bar) bar.style.width = '100%';
+
+  const inner = modal.querySelector('div');
+  const location = usedFolder ? 'saved to your chosen folder' : 'saved to your Downloads folder';
+  inner.innerHTML = `
+    <div style="font-family:'Fraunces',serif; font-size:17px; margin-bottom:8px; color:#f0ede6;">
+      Download complete
+    </div>
+    <div style="font-size:12px; color:#c8f060; margin-bottom:4px;">
+      ✓ ${succeeded} image${succeeded !== 1 ? 's' : ''} ${location}
+    </div>
+    ${failed > 0 ? `<div style="font-size:11px; color:#f06060; margin-bottom:16px;">⚠ ${failed} failed</div>` : '<div style="margin-bottom:16px;"></div>'}
+    <button onclick="document.getElementById('dl-modal').style.display='none'"
+      style="background:#c8f060; border:none; color:#0e0e0e; font-family:'DM Mono',monospace;
+             font-size:12px; font-weight:500; padding:10px 20px; border-radius:4px; cursor:pointer; width:100%;">
+      Done
+    </button>
+  `;
+}
+
+// ── LIGHTBOX ──
+function openLightbox(url, name, w, h, sourcePage) {
+  currentLightboxUrl = url;
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lb-name').textContent = name;
+  document.getElementById('lb-dims').textContent = w && h ? `${w} × ${h} px` : '';
+  document.getElementById('lightbox').classList.add('show');
+  const sourceWrap = document.getElementById('lb-source-wrap');
+  const sourceLink = document.getElementById('lb-source-link');
+  if (sourcePage) {
+    sourceLink.href = sourcePage;
+    sourceLink.textContent = sourcePage;
+    sourceWrap.style.display = 'block';
+  } else {
+    sourceWrap.style.display = 'none';
+  }
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightbox-img').src = '';
+  currentLightboxUrl = null;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+// ── SCREEN SWITCH ──
+function switchToGallery(url) {
+  document.getElementById('screen-entry').classList.remove('active');
+  document.getElementById('screen-gallery').classList.add('active');
+  document.getElementById('gallery-grid').innerHTML = '';
+  document.getElementById('topbar-url').textContent = url;
+  document.getElementById('topbar-stats').textContent = '';
+  document.getElementById('fmt-pills').innerHTML = '';
+  document.getElementById('filter-input').value = '';
+  document.getElementById('log-scroll').innerHTML = '';
+  filterText = '';
+  activeFormat = 'all';
+  crawlLog = [];
+  crawlLogMap.clear();
+  unseenLogCount = 0;
+  updateSelCount();
+  updateEmpty();
+}
+
+
+// ── CRAWL LOG FUNCTIONS ──
+function addToLog(url, status) {
+  if (crawlLogMap.has(url)) return;
+  const idx = crawlLog.length;
+  crawlLog.push({ url, status, found: 0 });
+  crawlLogMap.set(url, idx);
+
+  const scroll = document.getElementById('log-scroll');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.id = `log-entry-${idx}`;
+  entry.innerHTML = `
+    <div class="log-dot ${status}" id="log-dot-${idx}"></div>
+    <div class="log-text">
+      <div class="log-url" title="${url}">${url}</div>
+      <div class="log-meta" id="log-meta-${idx}">${status === 'queued' ? 'Queued' : 'Scanning…'}</div>
+    </div>
+  `;
+  scroll.appendChild(entry);
+
+  // Update badge
+  unseenLogCount++;
+  const badge = document.getElementById('log-badge');
+  badge.textContent = crawlLog.length;
+  badge.classList.add('has-unseen');
+}
+
+function updateLogEntry(url, status, found) {
+  const idx = crawlLogMap.get(url);
+  if (idx === undefined) return;
+  crawlLog[idx].status = status;
+  if (found !== undefined) crawlLog[idx].found = found;
+
+  const dot = document.getElementById(`log-dot-${idx}`);
+  const meta = document.getElementById(`log-meta-${idx}`);
+  const entryEl = document.getElementById(`log-entry-${idx}`);
+  if (!dot || !meta) return;
+
+  dot.className = `log-dot ${status}`;
+
+  if (status === 'active') {
+    meta.className = 'log-meta';
+    meta.textContent = 'Scanning…';
+    // Scroll to active entry if panel open
+    if (document.getElementById('crawl-log-panel').classList.contains('open')) {
+      entryEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  } else if (status === 'done') {
+    meta.className = 'log-meta found';
+    meta.textContent = found > 0 ? `+${found} image${found !== 1 ? 's' : ''} found` : 'No new images';
+  } else if (status === 'failed') {
+    meta.className = 'log-meta failed';
+    meta.textContent = 'Failed to fetch';
+    // Add rescrape button
+    if (entryEl && !entryEl.querySelector('.log-rescrape')) {
+      const btn = document.createElement('button');
+      btn.className = 'log-rescrape';
+      btn.textContent = '↺ Retry';
+      btn.onclick = () => rescrapeUrl(url);
+      entryEl.appendChild(btn);
+    }
+  } else if (status === 'queued') {
+    meta.className = 'log-meta';
+    meta.textContent = 'Not reached (page limit)';
+    // Add scrape button for unvisited queued pages
+    if (entryEl && !entryEl.querySelector('.log-rescrape')) {
+      const btn = document.createElement('button');
+      btn.className = 'log-rescrape';
+      btn.textContent = '▶ Scrape';
+      btn.onclick = () => rescrapeUrl(url);
+      entryEl.appendChild(btn);
+    }
+  }
+}
+
+function updateLogSubtitle() {
+  const done = crawlLog.filter(e => e.status === 'done').length;
+  const failed = crawlLog.filter(e => e.status === 'failed').length;
+  const queued = crawlLog.filter(e => e.status === 'queued').length;
+  let text = `${done} page${done !== 1 ? 's' : ''} scanned`;
+  if (failed > 0) text += `, ${failed} failed`;
+  if (queued > 0) text += `, ${queued} not reached`;
+  document.getElementById('log-subtitle').textContent = text;
+  // Update badge count
+  document.getElementById('log-badge').textContent = crawlLog.length;
+}
+
+function toggleCrawlLog() {
+  const panel = document.getElementById('crawl-log-panel');
+  panel.classList.toggle('open');
+  // Clear unseen badge styling when opened
+  if (panel.classList.contains('open')) {
+    unseenLogCount = 0;
+    document.getElementById('log-badge').classList.remove('has-unseen');
+  }
+}
+
+async function rescrapeUrl(url) {
+  if (isScanning) { toast('A scan is already in progress'); return; }
+  updateLogEntry(url, 'active');
+  isScanning = true;
+  setProgress(0, `Rescanning ${url.split('/').pop() || '/'}…`, true);
+
+  let foundCount = 0;
+  try {
+    const html = await fetchHTML(url);
+    const imgs = extractImages(html, url);
+    const before = allImages.length;
+    imgs.forEach(imgUrl => addImageSmart(imgUrl));
+    foundCount = allImages.length - before;
+    updateLogEntry(url, 'done', foundCount);
+    toast(`Rescan done — ${foundCount} new image${foundCount !== 1 ? 's' : ''} found`);
+  } catch(e) {
+    updateLogEntry(url, 'failed', 0);
+    toast('Rescan failed: ' + e.message);
+  }
+
+  isScanning = false;
+  setProgress(100, 'Done', false);
+  setTimeout(() => document.getElementById('progress-wrap').classList.remove('show'), 1500);
+  updateStats();
+  updateEmpty();
+  buildFormatPills();
+  updateLogSubtitle();
+}
+
+async function rescrapeAllFailed() {
+  const failed = crawlLog.filter(e => e.status === 'failed').map(e => e.url);
+  if (failed.length === 0) { toast('No failed pages to retry'); return; }
+  for (const url of failed) await rescrapeUrl(url);
+}
+
+async function scrapeRemainingQueued() {
+  const queued = crawlLog.filter(e => e.status === 'queued').map(e => e.url);
+  if (queued.length === 0) { toast('No unscraped pages remaining'); return; }
+  if (isScanning) { toast('A scan is already in progress'); return; }
+
+  isScanning = true;
+  setProgress(0, 'Scanning remaining pages…', true);
+  let pagesScraped = 0;
+
+  for (const url of queued) {
+    if (scrapeAborted) break;
+    updateLogEntry(url, 'active');
+    setProgress(
+      Math.round((pagesScraped / queued.length) * 100),
+      `Scanning ${url.split('/').pop() || '/'}…`
+    );
+    let foundCount = 0;
+    try {
+      const html = await fetchHTML(url);
+      const imgs = extractImages(html, url);
+      const before = allImages.length;
+      imgs.forEach(imgUrl => addImageSmart(imgUrl, url));
+      foundCount = allImages.length - before;
+
+      // Discover new pages and add to log as queued
+      if (scope === 'subdomain') {
+        const newLinks = extractLinks(html, url).filter(l => !crawlLogMap.has(l));
+        newLinks.forEach(l => addToLog(l, 'queued'));
+      }
+
+      updateLogEntry(url, 'done', foundCount);
+    } catch(e) {
+      updateLogEntry(url, 'failed', 0);
+    }
+    pagesScraped++;
+    updateStats();
+    updateLogSubtitle();
+  }
+
+  isScanning = false;
+  setProgress(100, `Done — ${pagesScraped} additional page${pagesScraped !== 1 ? 's' : ''} scanned`, false);
+  setTimeout(() => document.getElementById('progress-wrap').classList.remove('show'), 2200);
+  updateStats();
+  updateEmpty();
+  buildFormatPills();
+}
+
+// ── THUMB ERROR HANDLER ──
+function handleThumbError(imgEl) {
+  const originalSrc = imgEl.src;
+  // If already tried proxy, show broken state
+  if (imgEl.dataset.triedProxy) {
+    showBrokenThumb(imgEl);
+    return;
+  }
+  // Try routing through proxy
+  imgEl.dataset.triedProxy = '1';
+  imgEl.classList.add('thumb-retrying');
+  const proxySrc = proxied(originalSrc.split('?')[0]);
+  imgEl.src = proxySrc;
+  imgEl.onerror = () => showBrokenThumb(imgEl);
+}
+
+function showBrokenThumb(imgEl) {
+  imgEl.classList.remove('thumb-retrying');
+  // Find the card and auto-hide it
+  const card = imgEl.closest('.img-card');
+  if (card) {
+    const idx = parseInt(card.dataset.idx);
+    if (!isNaN(idx) && !hiddenSet.has(idx)) {
+      hiddenSet.add(idx);
+      card.classList.add('hidden-img');
+      card.classList.remove('selected');
+      selectedSet.delete(idx);
+      if (!showingHidden) card.style.display = 'none';
+      updateSelCount();
+      updateHiddenUI();
+      applyFilter();
+    }
+  }
+}
+
+// ── HIDE / SHOW ──
+function hideSelected() {
+  if (selectedSet.size === 0) return;
+  selectedSet.forEach(idx => {
+    hiddenSet.add(idx);
+    const card = document.getElementById(`card-${idx}`);
+    if (card) {
+      card.classList.add('hidden-img');
+      card.classList.remove('selected');
+      // Add hidden badge if not present
+      if (!card.querySelector('.hidden-badge')) {
+        const badge = document.createElement('div');
+        badge.className = 'hidden-badge';
+        badge.textContent = 'HIDDEN';
+        card.querySelector('.img-thumb-wrap').appendChild(badge);
+      }
+      if (!showingHidden) card.style.display = 'none';
+    }
+  });
+  selectedSet.clear();
+  updateSelCount();
+  applyFilter();
+  updateHiddenUI();
+}
+
+function unhideCard(idx) {
+  hiddenSet.delete(idx);
+  const card = document.getElementById(`card-${idx}`);
+  if (card) {
+    card.classList.remove('hidden-img', 'reveal-hidden');
+    card.style.display = '';
+  }
+  updateHiddenUI();
+  applyFilter();
+}
+
+function toggleShowHidden() {
+  showingHidden = !showingHidden;
+  const btn = document.getElementById('show-hidden-btn');
+
+  hiddenSet.forEach(idx => {
+    const card = document.getElementById(`card-${idx}`);
+    if (!card) return;
+    if (showingHidden) {
+      card.style.display = '';
+      card.classList.add('reveal-hidden');
+    } else {
+      card.style.display = 'none';
+      card.classList.remove('reveal-hidden');
+    }
+  });
+
+  btn.innerHTML = showingHidden
+    ? `Hide Hidden <span id="hidden-count-badge" style="background:var(--accent);color:#0e0e0e;font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px;">${hiddenSet.size}</span>`
+    : `Show Hidden <span id="hidden-count-badge" style="background:var(--border);color:var(--text-muted);font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px;">${hiddenSet.size}</span>`;
+  applyFilter();
+}
+
+function updateHiddenUI() {
+  const count = hiddenSet.size;
+  const showBtn = document.getElementById('show-hidden-btn');
+  const badge = document.getElementById('hidden-count-badge');
+  showBtn.style.display = count > 0 ? '' : 'none';
+  if (badge) badge.textContent = count;
+  if (count === 0 && showingHidden) {
+    showingHidden = false;
+    showBtn.innerHTML = `Show Hidden <span id="hidden-count-badge" style="background:var(--border);color:var(--text-muted);font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span>`;
+  }
+}
+
+
+function goBack() {
+  scrapeAborted = true;
+  isScanning = false;
+
+  document.getElementById('screen-gallery').classList.remove('active');
+  document.getElementById('screen-entry').classList.add('active');
+  document.getElementById('progress-wrap').classList.remove('show');
+  document.getElementById('crawl-log-panel').classList.remove('open');
+  document.getElementById('crawl-log-toggle').style.display = 'none';
+
+}
+
+// ── TOAST ──
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── ENTER KEY ──
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScrape();
+});
+
+
+// ── INIT ──
+
+</script>
+</body>
+</html>
